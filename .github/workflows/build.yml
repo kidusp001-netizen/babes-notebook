@@ -45,37 +45,21 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build arm64 APK (Samsung A31)
         run: |
           pip install pillow
           python3 tool/generate_app_icon.py
           flutter pub run flutter_launcher_icons
-          flutter build apk --release \
+          flutter build apk --release --target-platform android-arm64 \
             --dart-define=PERSONAL_MODE=true
 
       - name: Rename APK for easy install
         run: |
           cd build/app/outputs/flutter-apk
-          cp app-release.apk Babes-Notebook.apk
-          ls -la Babes-Notebook.apk
+          cp app-release.apk Babes-Notebook-arm64.apk
+          ls -la Babes-Notebook-arm64.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: build/app/outputs/flutter-apk/Babes-Notebook.apk
-
-      - name: Upload to GitHub Release
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
-          TAG="v${VERSION}-build${{ github.run_number }}"
-          gh release create "$TAG" \
-            build/app/outputs/flutter-apk/Babes-Notebook.apk \
-            --title "Babe's Notebook ${VERSION}" \
-            --notes "Install Babes-Notebook.apk on Android. Uninstall any old copy first if updating fails." \
-            2>/dev/null || \
-          gh release upload "$TAG" \
-            build/app/outputs/flutter-apk/Babes-Notebook.apk \
-            --clobber 2>/dev/null || true
+          path: build/app/outputs/flutter-apk/Babes-Notebook-arm64.apk

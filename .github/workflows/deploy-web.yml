@@ -32,6 +32,7 @@ jobs:
 
       - name: Build web
         run: |
+          pip install pillow
           python3 tool/generate_app_icon.py
           flutter pub run flutter_launcher_icons
           mkdir -p web/images

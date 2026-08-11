@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,22 +22,48 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build APKs
         run: |
           flutter pub run flutter_launcher_icons
-          flutter build apk --release --split-per-abi \
-            --dart-define=PERSONAL_MODE=true
+          flutter build apk --release --dart-define=PERSONAL_MODE=true
+          flutter build apk --release --split-per-abi --dart-define=PERSONAL_MODE=true
 
       - name: Rename APKs for easy install
         run: |
           cd build/app/outputs/flutter-apk
+          cp app-release.apk Babes-Notebook-universal.apk
           cp app-arm64-v8a-release.apk Babes-Notebook-arm64.apk
           cp app-armeabi-v7a-release.apk Babes-Notebook-arm32.apk
-          ls -la *.apk
+          ls -la Babes-Notebook-*.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: |
+            build/app/outputs/flutter-apk/Babes-Notebook-universal.apk
             build/app/outputs/flutter-apk/Babes-Notebook-arm64.apk
             build/app/outputs/flutter-apk/Babes-Notebook-arm32.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.1
+          name: Babe's Notebook v1.0.1
+          body: |
+            Install on Android (Samsung A31 and similar):
+            1. Uninstall any old "Babe's Notebook" first
+            2. Download **Babes-Notebook-universal.apk** using Chrome (not Telegram/WhatsApp)
+            3. Allow installs from Chrome when prompted
+            4. Tap the downloaded file to install
+
+            Files:
+            - `Babes-Notebook-universal.apk` — works on all phones (recommended)
+            - `Babes-Notebook-arm64.apk` — smaller, for newer Samsung/phones
+            - `Babes-Notebook-arm32.apk` — older 32-bit phones
+          files: |
+            build/app/outputs/flutter-apk/Babes-Notebook-universal.apk
+            build/app/outputs/flutter-apk/Babes-Notebook-arm64.apk
+            build/app/outputs/flutter-apk/Babes-Notebook-arm32.apk
+          draft: false
+          prerelease: false
+          overwrite_files: true

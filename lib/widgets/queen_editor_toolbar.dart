@@ -3,11 +3,16 @@ import 'package:flutter_quill/flutter_quill.dart';
 
 import '../config/theme.dart';
 
-/// Pink queen-themed formatting bar — sits above the Done button for easy thumb reach.
+/// Pink queen-themed formatting bar — sits above the keyboard / Done button.
 class QueenEditorToolbar extends StatefulWidget {
-  const QueenEditorToolbar({super.key, required this.controller});
+  const QueenEditorToolbar({
+    super.key,
+    required this.controller,
+    this.compact = false,
+  });
 
   final QuillController controller;
+  final bool compact;
 
   @override
   State<QueenEditorToolbar> createState() => _QueenEditorToolbarState();
@@ -69,6 +74,72 @@ class _QueenEditorToolbarState extends State<QueenEditorToolbar> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.compact) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _CompactIconButton(
+                icon: Icons.undo_rounded,
+                onTap: widget.controller.undo,
+              ),
+              _CompactIconButton(
+                icon: Icons.redo_rounded,
+                onTap: widget.controller.redo,
+              ),
+              const _CompactDivider(),
+              _CompactIconButton(
+                icon: Icons.format_bold_rounded,
+                selected: _isActive(Attribute.bold),
+                onTap: () => _toggle(Attribute.bold),
+              ),
+              _CompactIconButton(
+                icon: Icons.format_italic_rounded,
+                selected: _isActive(Attribute.italic),
+                onTap: () => _toggle(Attribute.italic),
+              ),
+              _CompactIconButton(
+                icon: Icons.format_underlined_rounded,
+                selected: _isActive(Attribute.underline),
+                onTap: () => _toggle(Attribute.underline),
+              ),
+              _CompactIconButton(
+                icon: Icons.format_list_bulleted_rounded,
+                selected: _isActive(Attribute.ul),
+                onTap: () => _toggle(Attribute.ul),
+              ),
+              _CompactIconButton(
+                icon: Icons.format_clear_rounded,
+                onTap: () {
+                  for (final attr in [
+                    Attribute.bold,
+                    Attribute.italic,
+                    Attribute.underline,
+                    Attribute.strikeThrough,
+                    Attribute.ul,
+                    Attribute.ol,
+                    Attribute.blockQuote,
+                  ]) {
+                    widget.controller
+                        .formatSelection(Attribute.clone(attr, null));
+                  }
+                  _setHeader(null);
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       decoration: BoxDecoration(
@@ -356,6 +427,63 @@ class _FormatChip extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactDivider extends StatelessWidget {
+  const _CompactDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 28,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      color: AppTheme.border,
+    );
+  }
+}
+
+class _CompactIconButton extends StatelessWidget {
+  const _CompactIconButton({
+    required this.icon,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Ink(
+          width: 40,
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: selected
+                ? const LinearGradient(
+                    colors: [AppTheme.primary, AppTheme.primaryDark],
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? AppTheme.primaryDark : Colors.transparent,
+            ),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: selected ? Colors.white : AppTheme.textDark,
           ),
         ),
       ),

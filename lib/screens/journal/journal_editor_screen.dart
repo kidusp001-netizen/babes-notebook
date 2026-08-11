@@ -44,6 +44,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
   bool _isSaving = false;
   bool _hasUnsavedChanges = false;
   String? _savedEntryId;
+  bool _fullscreen = false;
 
   bool get _isPastDate {
     final today = JournalEntry.normalizeDate(DateTime.now());
@@ -63,6 +64,11 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
       selection: const TextSelection.collapsed(offset: 0),
     );
     _quillController.document.changes.listen((_) => _onTextChanged());
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onTextChanged() {
@@ -79,6 +85,13 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
   void _scheduleAutoSave() {
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 1500), _save);
+  }
+
+  void _toggleFullscreen() {
+    setState(() => _fullscreen = !_fullscreen);
+    if (_fullscreen) {
+      _focusNode.requestFocus();
+    }
   }
 
   Future<void> _pickDate() async {
@@ -162,6 +175,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
   void dispose() {
     _saveTimer?.cancel();
     if (_hasUnsavedChanges) _save();
+    _focusNode.removeListener(_onFocusChanged);
     _quillController.dispose();
     _focusNode.dispose();
     _scrollController.dispose();
@@ -170,29 +184,51 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final keyboardOpen = bottomInset > 0;
+    final writingMode = _fullscreen || keyboardOpen;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (!didPop) await _goBack();
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: true,
         backgroundColor: AppTheme.background,
         body: SafeArea(
+          bottom: false,
           child: Column(
             children: [
-              _buildTopBar(context),
-              _buildDateHeader(context),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: CategoryPicker(
-                  selected: _category,
-                  onChanged: _onCategoryChanged,
+              _buildTopBar(context, writingMode: writingMode),
+              if (writingMode)
+                _buildCompactHeader(context)
+              else ...[
+                _buildDateHeader(context),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: CategoryPicker(
+                    selected: _category,
+                    onChanged: _onCategoryChanged,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Expanded(
+                child: _buildEditor(context, writingMode: writingMode),
+              ),
+              if (!writingMode) _buildDoneButton(),
+              AnimatedPadding(
+                duration: const Duration(milliseconds: 150),
+                curve: Curves.easeOut,
+                padding: EdgeInsets.only(bottom: bottomInset),
+                child: QueenEditorToolbar(
+                  controller: _quillController,
+                  compact: writingMode,
                 ),
               ),
-              const SizedBox(height: 8),
-              Expanded(child: _buildEditor(context)),
-              QueenEditorToolbar(controller: _quillController),
-              _buildDoneButton(),
+              if (bottomInset > 0)
+                SizedBox(height: MediaQuery.paddingOf(context).bottom),
             ],
           ),
         ),
@@ -200,7 +236,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
+  Widget _buildTopBar(BuildContext context, {required bool writingMode}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Row(
@@ -252,9 +288,61 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
             ),
           const Spacer(),
           _CircleButton(
-            icon: Icons.delete_outline_rounded,
-            onTap: _savedEntryId != null ? _confirmDelete : () {},
+            icon: _fullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+            onTap: _toggleFullscreen,
           ),
+          const SizedBox(width: 8),
+          if (writingMode)
+            _CircleButton(
+              icon: Icons.check_rounded,
+              onTap: _isSaving ? () {} : _goBack,
+            )
+          else
+            _CircleButton(
+              icon: Icons.delete_outline_rounded,
+              onTap: _savedEntryId != null ? _confirmDelete : () {},
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _pickDate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryLight,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    DateFormat('MMM d').format(_entryDate),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(width: 6),
+                  CategoryBadge(category: _category, compact: true),
+                ],
+              ),
+            ),
+          ),
+          const Spacer(),
+          if (!_fullscreen && _savedEntryId != null)
+            _CircleButton(
+              icon: Icons.delete_outline_rounded,
+              onTap: _confirmDelete,
+            ),
         ],
       ),
     );
@@ -368,15 +456,20 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
     );
   }
 
-  Widget _buildEditor(BuildContext context) {
+  Widget _buildEditor(BuildContext context, {required bool writingMode}) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      margin: EdgeInsets.fromLTRB(
+        writingMode ? 12 : 20,
+        writingMode ? 4 : 0,
+        writingMode ? 12 : 20,
+        writingMode ? 4 : 12,
+      ),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, writingMode ? 12 : 16),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(writingMode ? 20 : 28),
         border: Border.all(color: AppTheme.border),
-        boxShadow: AppTheme.cardShadow,
+        boxShadow: writingMode ? null : AppTheme.cardShadow,
       ),
       child: QuillEditor.basic(
         controller: _quillController,
@@ -385,6 +478,8 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
         config: QuillEditorConfig(
           placeholder: 'Tell Him about your day…',
           padding: EdgeInsets.zero,
+          scrollable: true,
+          autoFocus: false,
           customStyles: DefaultStyles(
             paragraph: DefaultTextBlockStyle(
               Theme.of(context).textTheme.bodyLarge!.copyWith(
@@ -416,7 +511,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
 
   Widget _buildDoneButton() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -429,7 +524,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            minimumSize: const Size(double.infinity, 56),
+            minimumSize: const Size(double.infinity, 52),
           ),
           onPressed: _isSaving ? null : _goBack,
           child: Text(_isSaving ? 'Saving…' : 'Done ♡'),

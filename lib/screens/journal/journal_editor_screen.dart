@@ -45,6 +45,9 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
   bool _hasUnsavedChanges = false;
   String? _savedEntryId;
   bool _fullscreen = false;
+  bool _isWriting = false;
+
+  bool get _compactLayout => _fullscreen || _isWriting;
 
   bool get _isPastDate {
     final today = JournalEntry.normalizeDate(DateTime.now());
@@ -66,6 +69,15 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
     _quillController.document.changes.listen((_) => _onTextChanged());
   }
 
+  void _enterWritingMode() {
+    if (!_isWriting && !_fullscreen) {
+      setState(() => _isWriting = true);
+    }
+    if (!_focusNode.hasFocus) {
+      _focusNode.requestFocus();
+    }
+  }
+
   void _onTextChanged() {
     _hasUnsavedChanges = true;
     _scheduleAutoSave();
@@ -83,7 +95,10 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
   }
 
   void _toggleFullscreen() {
-    setState(() => _fullscreen = !_fullscreen);
+    setState(() {
+      _fullscreen = !_fullscreen;
+      if (!_fullscreen) _isWriting = false;
+    });
   }
 
   Future<void> _pickDate() async {
@@ -176,8 +191,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final compactLayout = _fullscreen || keyboardOpen;
+    final compact = _compactLayout;
 
     return PopScope(
       canPop: false,
@@ -191,24 +205,34 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
           child: Column(
             children: [
               _buildTopBar(context),
-              if (compactLayout)
-                _buildCompactHeader(context)
-              else ...[
-                _buildDateHeader(context),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                  child: CategoryPicker(
-                    selected: _category,
-                    onChanged: _onCategoryChanged,
-                  ),
+              Offstage(
+                offstage: compact,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDateHeader(context),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                      child: CategoryPicker(
+                        selected: _category,
+                        onChanged: _onCategoryChanged,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-              Expanded(child: _buildEditor(context, compact: compactLayout)),
+              ),
+              if (compact) _buildCompactHeader(context),
+              Expanded(
+                child: _buildEditor(context, compact: compact),
+              ),
               QueenEditorToolbar(
                 controller: _quillController,
-                compact: compactLayout,
+                compact: compact,
               ),
-              if (!keyboardOpen && !_fullscreen) _buildDoneButton(),
+              Offstage(
+                offstage: compact,
+                child: _buildDoneButton(),
+              ),
             ],
           ),
         ),
@@ -433,53 +457,58 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
   }
 
   Widget _buildEditor(BuildContext context, {required bool compact}) {
-    return Container(
-      width: double.infinity,
-      margin: EdgeInsets.fromLTRB(
-        compact ? 12 : 20,
-        compact ? 4 : 8,
-        compact ? 12 : 20,
-        4,
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(compact ? 20 : 28),
-        border: Border.all(color: AppTheme.border),
-        boxShadow: compact ? null : AppTheme.cardShadow,
-      ),
-      child: QuillEditor.basic(
-        controller: _quillController,
-        focusNode: _focusNode,
-        scrollController: _scrollController,
-        config: QuillEditorConfig(
-          placeholder: 'Tell Him about your day…',
-          padding: EdgeInsets.zero,
-          scrollable: true,
-          autoFocus: false,
-          keyboardAppearance: Brightness.light,
-          customStyles: DefaultStyles(
-            paragraph: DefaultTextBlockStyle(
-              Theme.of(context).textTheme.bodyLarge!.copyWith(
-                    height: 1.75,
-                    fontSize: 16,
-                    color: AppTheme.textDark,
-                  ),
-              HorizontalSpacing.zero,
-              VerticalSpacing.zero,
-              VerticalSpacing.zero,
-              null,
-            ),
-            placeHolder: DefaultTextBlockStyle(
-              Theme.of(context).textTheme.bodyMedium!.copyWith(
-                    fontSize: 16,
-                    color: AppTheme.textMuted,
-                    fontStyle: FontStyle.italic,
-                  ),
-              HorizontalSpacing.zero,
-              VerticalSpacing.zero,
-              VerticalSpacing.zero,
-              null,
+    return GestureDetector(
+      onTap: _enterWritingMode,
+      behavior: HitTestBehavior.translucent,
+      child: Container(
+        key: const ValueKey('journal-editor'),
+        width: double.infinity,
+        margin: EdgeInsets.fromLTRB(
+          compact ? 12 : 20,
+          compact ? 4 : 8,
+          compact ? 12 : 20,
+          4,
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(compact ? 20 : 28),
+          border: Border.all(color: AppTheme.border),
+          boxShadow: compact ? null : AppTheme.cardShadow,
+        ),
+        child: QuillEditor.basic(
+          controller: _quillController,
+          focusNode: _focusNode,
+          scrollController: _scrollController,
+          config: QuillEditorConfig(
+            placeholder: 'Tell Him about your day…',
+            padding: EdgeInsets.zero,
+            scrollable: true,
+            autoFocus: false,
+            keyboardAppearance: Brightness.light,
+            customStyles: DefaultStyles(
+              paragraph: DefaultTextBlockStyle(
+                Theme.of(context).textTheme.bodyLarge!.copyWith(
+                      height: 1.75,
+                      fontSize: 16,
+                      color: AppTheme.textDark,
+                    ),
+                HorizontalSpacing.zero,
+                VerticalSpacing.zero,
+                VerticalSpacing.zero,
+                null,
+              ),
+              placeHolder: DefaultTextBlockStyle(
+                Theme.of(context).textTheme.bodyMedium!.copyWith(
+                      fontSize: 16,
+                      color: AppTheme.textMuted,
+                      fontStyle: FontStyle.italic,
+                    ),
+                HorizontalSpacing.zero,
+                VerticalSpacing.zero,
+                VerticalSpacing.zero,
+                null,
+              ),
             ),
           ),
         ),

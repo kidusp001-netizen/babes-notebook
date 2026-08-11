@@ -98,24 +98,26 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
               child: Align(
                 alignment: Alignment.bottomCenter,
-                child: Row(
-                  children: [
-                    _PageDots(count: _pages.length, index: _page),
-                    const Spacer(),
-                    if (isLast) ...[
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: _StartButton(onTap: _finish),
-                        ),
+                child: isLast
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: _PageDots(count: _pages.length, index: _page),
+                          ),
+                          const SizedBox(height: 20),
+                          _StartButton(onTap: _finish),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          _PageDots(count: _pages.length, index: _page),
+                          const Spacer(),
+                          _ArrowButton(isLast: false, onTap: _next),
+                        ],
                       ),
-                    ],
-                    _ArrowButton(
-                      isLast: isLast,
-                      onTap: _next,
-                    ),
-                  ],
-                ),
               ),
             ),
           ),
@@ -838,29 +840,34 @@ class _StartButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 56,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.border),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppTheme.primary, AppTheme.primaryDark],
             ),
-          ],
-        ),
-        child: Text(
-          'Start writing ♡',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppTheme.primary,
-                fontWeight: FontWeight.w700,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: AppTheme.primaryShadow,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Start writing',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
+              const SizedBox(width: 6),
+              const Icon(Icons.favorite_rounded, color: Colors.white, size: 20),
+            ],
+          ),
         ),
       ),
     );

@@ -176,6 +176,9 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final compactLayout = _fullscreen || keyboardOpen;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -188,7 +191,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
           child: Column(
             children: [
               _buildTopBar(context),
-              if (_fullscreen)
+              if (compactLayout)
                 _buildCompactHeader(context)
               else ...[
                 _buildDateHeader(context),
@@ -200,12 +203,12 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
                   ),
                 ),
               ],
-              Expanded(child: _buildEditor(context)),
+              Expanded(child: _buildEditor(context, compact: compactLayout)),
               QueenEditorToolbar(
                 controller: _quillController,
-                compact: _fullscreen,
+                compact: compactLayout,
               ),
-              if (!_fullscreen) _buildDoneButton(),
+              if (!keyboardOpen && !_fullscreen) _buildDoneButton(),
             ],
           ),
         ),
@@ -429,21 +432,21 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
     );
   }
 
-  Widget _buildEditor(BuildContext context) {
+  Widget _buildEditor(BuildContext context, {required bool compact}) {
     return Container(
       width: double.infinity,
       margin: EdgeInsets.fromLTRB(
-        _fullscreen ? 12 : 20,
-        _fullscreen ? 4 : 8,
-        _fullscreen ? 12 : 20,
-        8,
+        compact ? 12 : 20,
+        compact ? 4 : 8,
+        compact ? 12 : 20,
+        4,
       ),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(_fullscreen ? 20 : 28),
+        borderRadius: BorderRadius.circular(compact ? 20 : 28),
         border: Border.all(color: AppTheme.border),
-        boxShadow: _fullscreen ? null : AppTheme.cardShadow,
+        boxShadow: compact ? null : AppTheme.cardShadow,
       ),
       child: QuillEditor.basic(
         controller: _quillController,

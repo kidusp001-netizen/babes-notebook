@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../config/theme.dart';
 import '../../models/journal_category.dart';
 import '../../models/journal_entry.dart';
+import '../../providers/journal_offline_provider.dart';
 import '../../services/journal_service.dart';
 import '../../widgets/category_badge.dart';
 import '../../widgets/daily_verse_card.dart';
@@ -12,6 +13,7 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/filter_chips.dart';
 import '../../widgets/home_header.dart';
 import '../../widgets/journal_card.dart';
+import '../../widgets/offline_banner.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +28,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final entriesAsync = ref.watch(journalEntriesProvider);
+    final isOffline = ref.watch(journalOfflineProvider);
     final today = JournalEntry.normalizeDate(DateTime.now());
     final notifier = ref.read(journalEntriesProvider.notifier);
 
@@ -65,6 +68,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
               children: [
                 const HomeHeader(),
+                if (isOffline) const OfflineBanner(),
                 const SizedBox(height: 20),
                 const DailyVerseCard(),
                 const SizedBox(height: 28),

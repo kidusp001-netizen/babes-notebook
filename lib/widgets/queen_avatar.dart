@@ -131,7 +131,7 @@ class AppLogoMark extends StatelessWidget {
             border: Border.all(color: AppTheme.border),
           ),
           child: Text(
-            '♡ for my queen',
+            '♡ for my babe',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: AppTheme.primary,
                   fontSize: 11,

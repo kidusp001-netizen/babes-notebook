@@ -11,9 +11,9 @@ class HomeHeader extends ConsumerWidget {
 
   String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning, Queen!';
-    if (hour < 17) return 'Good Afternoon, Queen!';
-    return 'Good Evening, Queen!';
+    if (hour < 12) return 'Good morning, Babe!';
+    if (hour < 17) return 'Good afternoon, Babe!';
+    return 'Good evening, Babe!';
   }
 
   @override

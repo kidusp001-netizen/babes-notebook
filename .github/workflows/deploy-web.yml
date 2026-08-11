@@ -32,11 +32,15 @@ jobs:
 
       - name: Build web
         run: |
+          python3 tool/generate_app_icon.py
+          flutter pub run flutter_launcher_icons
+          mkdir -p web/images
+          cp assets/images/queen_avatar.png web/images/queen_avatar.png
           flutter build web --release \
-            --no-wasm-dry-run \
+            --wasm \
             --base-href "/babes-notebook/" \
-            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
-            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            --dart-define=PERSONAL_MODE=true
+          test -f build/web/images/queen_avatar.png || cp -r web/images build/web/images
 
       - uses: actions/configure-pages@v4
         with:

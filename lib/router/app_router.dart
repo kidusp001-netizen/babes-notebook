@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../config/preview_config.dart';
+import '../config/app_config.dart';
 import '../models/journal_category.dart';
-import '../providers/auth_provider.dart';
-import '../screens/auth/login_screen.dart';
-import '../screens/auth/signup_screen.dart';
+import '../providers/onboarding_provider.dart';
 import '../screens/calendar/calendar_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/journal/journal_editor_screen.dart';
 import '../screens/journal/journal_list_screen.dart';
+import '../screens/onboarding/onboarding_screen.dart';
 import '../screens/profile/reminder_settings_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/scripture/daily_scripture_screen.dart';
@@ -18,30 +17,31 @@ import '../screens/shell/main_shell.dart';
 import '../screens/splash_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final onboarding = ref.watch(onboardingCompleteProvider);
 
   return GoRouter(
     initialLocation: '/',
-    refreshListenable: _AuthRefreshListenable(ref),
+    refreshListenable: _RouterRefreshListenable(ref),
     redirect: (context, state) {
-      if (PreviewConfig.enabled) {
-        if (state.matchedLocation == '/') return '/home';
-        return null;
-      }
+      if (onboarding.isLoading) return null;
 
-      if (authState.isLoading) return null;
-
-      final isLoggedIn = ref.read(isAuthenticatedProvider);
+      final onboardingDone = onboarding.value ?? false;
       final path = state.matchedLocation;
-      final isAuthRoute = path == '/login' || path == '/signup';
-      final isSplash = path == '/';
 
-      if (authState.isLoading && isSplash) return null;
-
-      if (!isLoggedIn && !isAuthRoute && !isSplash && path != '/write' && path != '/scripture' && path != '/reminder-settings') {
-        return '/login';
+      // First launch: onboarding splashes, then straight to home — no login.
+      if (!onboardingDone) {
+        return path == '/onboarding' ? null : '/onboarding';
       }
-      if (isLoggedIn && (isAuthRoute || isSplash)) return '/home';
+
+      if (path == '/onboarding' || path == '/') {
+        return '/home';
+      }
+
+      // Legacy auth routes — not used in personal mode.
+      if (AppConfig.skipAuth && (path == '/login' || path == '/signup')) {
+        return '/home';
+      }
+
       return null;
     },
     routes: [
@@ -50,12 +50,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
-      GoRoute(
-        path: '/signup',
-        builder: (context, state) => const SignUpScreen(),
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => MainShell(child: child),
@@ -110,9 +106,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class _AuthRefreshListenable extends ChangeNotifier {
-  _AuthRefreshListenable(this.ref) {
-    ref.listen(authStateProvider, (_, __) => notifyListeners());
+class _RouterRefreshListenable extends ChangeNotifier {
+  _RouterRefreshListenable(this.ref) {
+    ref.listen(onboardingCompleteProvider, (_, __) => notifyListeners());
   }
 
   final Ref ref;

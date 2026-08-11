@@ -14,6 +14,11 @@
 
   <link rel="icon" type="image/png" href="favicon.png"/>
 
+  <link rel="preload" href="main.dart.js" as="script">
+  <link rel="preload" href="canvaskit/canvaskit.js" as="script">
+  <link rel="preload" href="canvaskit/canvaskit.wasm" as="fetch" crossorigin>
+  <link rel="preload" href="images/queen_avatar.png" as="image">
+
   <title>Babe's Notebook</title>
   <link rel="manifest" href="manifest.json">
 
@@ -37,21 +42,49 @@
       gap: 16px;
     }
 
-    #loading .logo {
-      width: 88px;
-      height: 88px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #e8b4bc, #ec4899, #db2777);
+    /* Creative curved rectangle frame for her photo */
+    .portrait-frame {
+      position: relative;
+      width: 112px;
+      height: 136px;
+      border-radius: 28px;
       padding: 4px;
-      box-shadow: 0 12px 24px rgba(236, 72, 153, 0.35);
+      background: linear-gradient(145deg, #e8b4bc, #ec4899, #db2777);
+      box-shadow: 0 16px 32px rgba(236, 72, 153, 0.35);
     }
 
-    #loading .logo img {
+    .portrait-frame::before {
+      content: "";
+      position: absolute;
+      inset: -6px;
+      border-radius: 32px;
+      border: 2px solid rgba(236, 72, 153, 0.25);
+      pointer-events: none;
+    }
+
+    .portrait-frame img {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
+      border-radius: 24px;
       object-fit: cover;
+      border: 3px solid white;
+      display: block;
+    }
+
+    .portrait-frame .heart {
+      position: absolute;
+      bottom: -6px;
+      right: -6px;
+      width: 28px;
+      height: 28px;
+      background: #ec4899;
+      border-radius: 50%;
       border: 2px solid white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      box-shadow: 0 4px 10px rgba(236, 72, 153, 0.4);
     }
 
     #loading h1 {
@@ -82,8 +115,9 @@
 </head>
 <body>
   <div id="loading">
-    <div class="logo">
-      <img src="icons/Icon-192.png" alt="Babe's Notebook">
+    <div class="portrait-frame">
+      <img src="images/queen_avatar.png" alt="Babe">
+      <div class="heart">♡</div>
     </div>
     <h1>Babe's Notebook</h1>
     <p>Loading your journal…</p>

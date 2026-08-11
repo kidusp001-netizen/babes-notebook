@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import '../../config/theme.dart';
 import '../../models/journal_category.dart';
 import '../../models/journal_entry.dart';
+import '../../providers/journal_offline_provider.dart';
 import '../../services/journal_service.dart';
 import '../../utils/journal_content.dart';
 import '../../widgets/category_badge.dart';
@@ -124,6 +125,17 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
           );
       _savedEntryId = saved.id;
       _hasUnsavedChanges = false;
+      if (mounted && ref.read(journalOfflineProvider)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Saved on this device — will sync when online.'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -208,20 +220,33 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppTheme.success.withValues(alpha: 0.12),
+                color: (ref.watch(journalOfflineProvider)
+                        ? AppTheme.primary
+                        : AppTheme.success)
+                    .withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.cloud_done_rounded,
-                      size: 16,
-                      color: AppTheme.success.withValues(alpha: 0.9)),
+                  Icon(
+                    ref.watch(journalOfflineProvider)
+                        ? Icons.cloud_off_rounded
+                        : Icons.cloud_done_rounded,
+                    size: 16,
+                    color: (ref.watch(journalOfflineProvider)
+                            ? AppTheme.primary
+                            : AppTheme.success)
+                        .withValues(alpha: 0.9),
+                  ),
                   const SizedBox(width: 4),
-                  Text('Saved',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelLarge
-                          ?.copyWith(color: AppTheme.success)),
+                  Text(
+                    ref.watch(journalOfflineProvider) ? 'Saved offline' : 'Saved',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: ref.watch(journalOfflineProvider)
+                              ? AppTheme.primary
+                              : AppTheme.success,
+                        ),
+                  ),
                 ],
               ),
             ),

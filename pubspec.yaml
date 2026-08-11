@@ -33,12 +33,12 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/images/queen_avatar.png
+  image_path: assets/images/app_icon.png
   adaptive_icon_background: "#FFF5F7"
-  adaptive_icon_foreground: assets/images/queen_avatar.png
+  adaptive_icon_foreground: assets/images/app_icon.png
   web:
     generate: true
-    image_path: assets/images/queen_avatar.png
+    image_path: assets/images/app_icon.png
     background_color: "#FFF5F7"
 
 flutter:

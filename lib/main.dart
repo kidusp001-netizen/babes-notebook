@@ -3,16 +3,22 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'config/app_config.dart';
 import 'config/theme.dart';
-import 'config/preview_config.dart';
 import 'config/supabase_config.dart';
 import 'screens/setup_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Avoid blocking first paint while fonts download from Google CDN.
+  if (kIsWeb) {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  }
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
@@ -37,7 +43,8 @@ Future<void> main() async {
     );
   };
 
-  if (PreviewConfig.enabled) {
+  // Personal gift app — no cloud login, starts fast.
+  if (AppConfig.skipAuth) {
     runApp(const ProviderScope(child: BabesNotebookApp()));
     return;
   }
@@ -46,6 +53,9 @@ Future<void> main() async {
     await Supabase.initialize(
       url: SupabaseConfig.url,
       anonKey: SupabaseConfig.anonKey, // ignore: deprecated_member_use
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+      ),
     );
     runApp(const ProviderScope(child: BabesNotebookApp()));
   } else {

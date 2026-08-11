@@ -1,11 +1,11 @@
-/// Daily loving notes shown on the Profile screen — from Kidus to his queen.
+/// Daily loving notes shown on the Profile screen — from Kidus to Babe.
 class LovingMessages {
   LovingMessages._();
 
   static const signature = 'With all my love, Kidus ♡';
 
   static const _messages = [
-    'You are my queen in every season. I\'m so proud of the woman you are.',
+    'You are my babe in every season. I\'m so proud of the woman you are.',
     'Every letter you write here matters — to God, and to me.',
     'Your heart is beautiful, Babe. Never stop pouring it out.',
     'I built this for you because you deserve something as lovely as you are.',

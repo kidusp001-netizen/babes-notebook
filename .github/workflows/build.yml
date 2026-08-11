@@ -21,9 +21,10 @@ jobs:
 
       - name: Build APK
         run: |
+          python3 tool/generate_app_icon.py
+          flutter pub run flutter_launcher_icons
           flutter build apk --release \
-            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
-            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            --dart-define=PERSONAL_MODE=true
 
       - uses: actions/upload-artifact@v4
         with:

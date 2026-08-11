@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../config/app_config.dart';
 import '../../config/loving_messages.dart';
-import '../../config/preview_config.dart';
 import '../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/scripture_provider.dart';
@@ -52,7 +52,7 @@ class ProfileScreen extends ConsumerWidget {
                       Text(name, style: Theme.of(context).textTheme.titleLarge),
                       const SizedBox(height: 4),
                       Text(
-                        'My Queen ♡',
+                        'My Babe ♡',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppTheme.primary,
                               fontWeight: FontWeight.w600,
@@ -95,7 +95,7 @@ class ProfileScreen extends ConsumerWidget {
             subtitle: 'Only you can see your entries',
             onTap: () {},
           ),
-          if (!PreviewConfig.enabled) ...[
+          if (!AppConfig.skipAuth) ...[
             const SizedBox(height: 12),
             _SettingsTile(
               icon: Icons.logout_rounded,
@@ -163,7 +163,7 @@ class _LovingMessageCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                'A note for my queen',
+                'A note for my babe',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: AppTheme.primary,
                       fontSize: 12,

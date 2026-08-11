@@ -4,10 +4,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/daily_reading.dart';
+import 'modern_scripture_service.dart';
 
 class OrthocalService {
   static const _baseUrl = 'https://orthocal.info/api';
-  static const _cachePrefix = 'orthocal_reading_';
+  static const _cachePrefix = 'orthocal_reading_v3_';
+  final _modern = ModernScriptureService();
 
   Future<DailyReading> fetchForDate(
     DateTime date, {
@@ -30,8 +32,9 @@ class OrthocalService {
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     final reading = DailyReading.fromJson(json, normalized);
-    await _writeCache(cacheKey, reading);
-    return reading;
+    final modern = await _modern.applyModernText(reading);
+    await _writeCache(cacheKey, modern);
+    return modern;
   }
 
   Future<DailyReading> fetchToday({

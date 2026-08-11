@@ -79,6 +79,14 @@ class _ReadingView extends StatelessWidget {
                         ),
                   ),
                 ],
+                const SizedBox(height: 8),
+                Text(
+                  'Scripture in modern English',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: AppTheme.textMuted,
+                        fontSize: 11,
+                      ),
+                ),
                 if (reading.titles.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(

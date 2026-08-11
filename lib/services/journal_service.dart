@@ -1,11 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../config/app_config.dart';
 import '../config/preview_config.dart';
 import '../models/journal_category.dart';
 import '../models/journal_entry.dart';
 import '../providers/auth_provider.dart';
+import '../providers/journal_offline_provider.dart';
+import 'journal_cache_service.dart';
+import 'local_journal_service.dart';
 import 'preview_journal_service.dart';
 
 class JournalService {
@@ -84,22 +90,89 @@ class JournalService {
 
 final journalServiceProvider = Provider<Object>((ref) {
   if (PreviewConfig.enabled) return previewJournalServiceProvider;
+  if (AppConfig.personalMode) return localJournalServiceProvider;
   return JournalService(ref.watch(supabaseClientProvider));
 });
 
 class JournalEntriesNotifier extends AsyncNotifier<List<JournalEntry>> {
   dynamic get _service => ref.read(journalServiceProvider);
+  final _cache = JournalCacheService.instance;
+
+  String? get _userId {
+    if (PreviewConfig.enabled) return 'preview';
+    if (AppConfig.personalMode) return LocalJournalService.userId;
+    return ref.read(supabaseClientProvider).auth.currentUser?.id;
+  }
 
   @override
   Future<List<JournalEntry>> build() async {
-    return _service.fetchAll() as Future<List<JournalEntry>>;
+    if (AppConfig.useLocalJournal) {
+      return _service.fetchAll() as Future<List<JournalEntry>>;
+    }
+
+    final userId = _userId;
+    if (userId == null) return [];
+
+    final cached = await _cache.loadEntries(userId);
+    if (cached.isNotEmpty) {
+      unawaited(_refreshInBackground(userId));
+      return cached;
+    }
+
+    return _fetchFromNetwork(userId);
+  }
+
+  Future<List<JournalEntry>> _fetchFromNetwork(String userId) async {
+    try {
+      final remote = await _service.fetchAll() as List<JournalEntry>;
+      await _cache.saveEntries(userId, remote);
+      ref.read(journalOfflineProvider.notifier).state = false;
+      await _syncPending(userId);
+      return remote;
+    } catch (_) {
+      ref.read(journalOfflineProvider.notifier).state = true;
+      rethrow;
+    }
+  }
+
+  Future<void> _refreshInBackground(String userId) async {
+    try {
+      final remote = await _service.fetchAll() as List<JournalEntry>;
+      await _cache.saveEntries(userId, remote);
+      ref.read(journalOfflineProvider.notifier).state = false;
+      await _syncPending(userId);
+      state = AsyncData(remote);
+    } catch (_) {
+      ref.read(journalOfflineProvider.notifier).state = true;
+    }
   }
 
   Future<void> refresh() async {
+    if (AppConfig.useLocalJournal) {
+      state = AsyncData(
+        await _service.fetchAll() as List<JournalEntry>,
+      );
+      return;
+    }
+
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => _service.fetchAll() as Future<List<JournalEntry>>,
-    );
+    state = await AsyncValue.guard(() async {
+      final userId = _userId;
+      if (userId == null) return [];
+
+      final cached = await _cache.loadEntries(userId);
+      try {
+        final remote = await _service.fetchAll() as List<JournalEntry>;
+        await _cache.saveEntries(userId, remote);
+        ref.read(journalOfflineProvider.notifier).state = false;
+        await _syncPending(userId);
+        return remote;
+      } catch (_) {
+        ref.read(journalOfflineProvider.notifier).state = true;
+        if (cached.isNotEmpty) return cached;
+        rethrow;
+      }
+    });
   }
 
   Future<JournalEntry> saveEntry({
@@ -108,20 +181,112 @@ class JournalEntriesNotifier extends AsyncNotifier<List<JournalEntry>> {
     required String content,
     required JournalCategory category,
   }) async {
-    final saved = await _service.save(
-          id: id,
-          entryDate: entryDate,
-          content: content,
-          category: category,
-        ) as JournalEntry;
+    if (AppConfig.useLocalJournal) {
+      final saved = await _service.save(
+            id: id,
+            entryDate: entryDate,
+            content: content,
+            category: category,
+          ) as JournalEntry;
+      state = AsyncData(await _service.fetchAll() as List<JournalEntry>);
+      return saved;
+    }
 
-    await refresh();
-    return saved;
+    final userId = _userId;
+    if (userId == null) {
+      throw StateError('Must be signed in to save entries.');
+    }
+
+    final now = DateTime.now().toUtc();
+    final local = JournalEntry(
+      id: id ?? const Uuid().v4(),
+      userId: userId,
+      entryDate: JournalEntry.normalizeDate(entryDate),
+      content: content,
+      category: category,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await _cache.upsertEntry(userId, local);
+    _updateStateFromCache(await _cache.loadEntries(userId));
+
+    try {
+      final saved = await _service.save(
+            id: id,
+            entryDate: entryDate,
+            content: content,
+            category: category,
+          ) as JournalEntry;
+      await _cache.upsertEntry(userId, saved);
+      ref.read(journalOfflineProvider.notifier).state = false;
+      _updateStateFromCache(await _cache.loadEntries(userId));
+      return saved;
+    } catch (_) {
+      await _cache.addPendingSave(userId, local);
+      ref.read(journalOfflineProvider.notifier).state = true;
+      return local;
+    }
   }
 
   Future<void> deleteEntry(String id) async {
-    await _service.delete(id);
-    await refresh();
+    if (AppConfig.useLocalJournal) {
+      await _service.delete(id);
+      state = AsyncData(await _service.fetchAll() as List<JournalEntry>);
+      return;
+    }
+
+    final userId = _userId;
+    if (userId == null) return;
+
+    await _cache.removeEntry(userId, id);
+    _updateStateFromCache(await _cache.loadEntries(userId));
+
+    try {
+      await _service.delete(id);
+      ref.read(journalOfflineProvider.notifier).state = false;
+    } catch (_) {
+      await _cache.addPendingDelete(userId, id);
+      ref.read(journalOfflineProvider.notifier).state = true;
+    }
+  }
+
+  void _updateStateFromCache(List<JournalEntry> entries) {
+    state = AsyncData(entries);
+  }
+
+  Future<void> _syncPending(String userId) async {
+    final pending = await _cache.loadPending(userId);
+    if (pending.isEmpty) return;
+
+    final remaining = <Map<String, dynamic>>[];
+
+    for (final action in pending) {
+      try {
+        if (action['type'] == 'save') {
+          final entry = JournalEntry.fromJson(
+            Map<String, dynamic>.from(action['entry']),
+          );
+          final saved = await _service.save(
+                id: entry.id,
+                entryDate: entry.entryDate,
+                content: entry.content,
+                category: entry.category,
+              ) as JournalEntry;
+          await _cache.upsertEntry(userId, saved);
+        } else if (action['type'] == 'delete') {
+          await _service.delete(action['id'] as String);
+          await _cache.removeEntry(userId, action['id'] as String);
+        }
+      } catch (_) {
+        remaining.add(action);
+      }
+    }
+
+    await _cache.savePending(userId, remaining);
+    if (remaining.isEmpty) {
+      ref.read(journalOfflineProvider.notifier).state = false;
+    }
   }
 
   List<JournalEntry> entriesForDate(DateTime date) {

@@ -21,7 +21,6 @@ jobs:
 
       - name: Build APK
         run: |
-          python3 tool/generate_app_icon.py
           flutter pub run flutter_launcher_icons
           flutter build apk --release \
             --dart-define=PERSONAL_MODE=true

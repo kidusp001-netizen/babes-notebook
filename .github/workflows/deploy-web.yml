@@ -32,7 +32,6 @@ jobs:
 
       - name: Build web
         run: |
-          python3 tool/generate_app_icon.py
           flutter pub run flutter_launcher_icons
           mkdir -p web/images
           cp assets/images/queen_avatar.png web/images/queen_avatar.png

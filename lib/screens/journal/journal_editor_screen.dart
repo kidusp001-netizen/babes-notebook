@@ -64,11 +64,6 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
       selection: const TextSelection.collapsed(offset: 0),
     );
     _quillController.document.changes.listen((_) => _onTextChanged());
-    _focusNode.addListener(_onFocusChanged);
-  }
-
-  void _onFocusChanged() {
-    if (mounted) setState(() {});
   }
 
   void _onTextChanged() {
@@ -89,9 +84,6 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
 
   void _toggleFullscreen() {
     setState(() => _fullscreen = !_fullscreen);
-    if (_fullscreen) {
-      _focusNode.requestFocus();
-    }
   }
 
   Future<void> _pickDate() async {
@@ -167,6 +159,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
   }
 
   Future<void> _goBack() async {
+    _focusNode.unfocus();
     if (_hasUnsavedChanges) await _save();
     if (mounted) context.pop();
   }
@@ -175,7 +168,6 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
   void dispose() {
     _saveTimer?.cancel();
     if (_hasUnsavedChanges) _save();
-    _focusNode.removeListener(_onFocusChanged);
     _quillController.dispose();
     _focusNode.dispose();
     _scrollController.dispose();
@@ -184,10 +176,6 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final keyboardOpen = bottomInset > 0;
-    final writingMode = _fullscreen || keyboardOpen;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -197,38 +185,27 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
         resizeToAvoidBottomInset: true,
         backgroundColor: AppTheme.background,
         body: SafeArea(
-          bottom: false,
           child: Column(
             children: [
-              _buildTopBar(context, writingMode: writingMode),
-              if (writingMode)
+              _buildTopBar(context),
+              if (_fullscreen)
                 _buildCompactHeader(context)
               else ...[
                 _buildDateHeader(context),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                   child: CategoryPicker(
                     selected: _category,
                     onChanged: _onCategoryChanged,
                   ),
                 ),
-                const SizedBox(height: 8),
               ],
-              Expanded(
-                child: _buildEditor(context, writingMode: writingMode),
+              Expanded(child: _buildEditor(context)),
+              QueenEditorToolbar(
+                controller: _quillController,
+                compact: _fullscreen,
               ),
-              if (!writingMode) _buildDoneButton(),
-              AnimatedPadding(
-                duration: const Duration(milliseconds: 150),
-                curve: Curves.easeOut,
-                padding: EdgeInsets.only(bottom: bottomInset),
-                child: QueenEditorToolbar(
-                  controller: _quillController,
-                  compact: writingMode,
-                ),
-              ),
-              if (bottomInset > 0)
-                SizedBox(height: MediaQuery.paddingOf(context).bottom),
+              if (!_fullscreen) _buildDoneButton(),
             ],
           ),
         ),
@@ -236,7 +213,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context, {required bool writingMode}) {
+  Widget _buildTopBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Row(
@@ -288,20 +265,16 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
             ),
           const Spacer(),
           _CircleButton(
-            icon: _fullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+            icon: _fullscreen
+                ? Icons.fullscreen_exit_rounded
+                : Icons.fullscreen_rounded,
             onTap: _toggleFullscreen,
           ),
           const SizedBox(width: 8),
-          if (writingMode)
-            _CircleButton(
-              icon: Icons.check_rounded,
-              onTap: _isSaving ? () {} : _goBack,
-            )
-          else
-            _CircleButton(
-              icon: Icons.delete_outline_rounded,
-              onTap: _savedEntryId != null ? _confirmDelete : () {},
-            ),
+          _CircleButton(
+            icon: Icons.check_rounded,
+            onTap: _isSaving ? () {} : _goBack,
+          ),
         ],
       ),
     );
@@ -338,7 +311,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
             ),
           ),
           const Spacer(),
-          if (!_fullscreen && _savedEntryId != null)
+          if (_savedEntryId != null)
             _CircleButton(
               icon: Icons.delete_outline_rounded,
               onTap: _confirmDelete,
@@ -456,20 +429,21 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
     );
   }
 
-  Widget _buildEditor(BuildContext context, {required bool writingMode}) {
+  Widget _buildEditor(BuildContext context) {
     return Container(
+      width: double.infinity,
       margin: EdgeInsets.fromLTRB(
-        writingMode ? 12 : 20,
-        writingMode ? 4 : 0,
-        writingMode ? 12 : 20,
-        writingMode ? 4 : 12,
+        _fullscreen ? 12 : 20,
+        _fullscreen ? 4 : 8,
+        _fullscreen ? 12 : 20,
+        8,
       ),
-      padding: EdgeInsets.fromLTRB(20, 16, 20, writingMode ? 12 : 16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(writingMode ? 20 : 28),
+        borderRadius: BorderRadius.circular(_fullscreen ? 20 : 28),
         border: Border.all(color: AppTheme.border),
-        boxShadow: writingMode ? null : AppTheme.cardShadow,
+        boxShadow: _fullscreen ? null : AppTheme.cardShadow,
       ),
       child: QuillEditor.basic(
         controller: _quillController,
@@ -480,6 +454,7 @@ class _JournalEditorScreenState extends ConsumerState<JournalEditorScreen> {
           padding: EdgeInsets.zero,
           scrollable: true,
           autoFocus: false,
+          keyboardAppearance: Brightness.light,
           customStyles: DefaultStyles(
             paragraph: DefaultTextBlockStyle(
               Theme.of(context).textTheme.bodyLarge!.copyWith(
@@ -542,17 +517,21 @@ class _CircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          shape: BoxShape.circle,
-          border: Border.all(color: AppTheme.border),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            shape: BoxShape.circle,
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: Icon(icon, color: AppTheme.textDark, size: 22),
         ),
-        child: Icon(icon, color: AppTheme.textDark, size: 22),
       ),
     );
   }

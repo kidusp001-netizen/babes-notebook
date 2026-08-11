@@ -1,0 +1,47 @@
+name: babes_notebook
+description: A daily journal app for reflecting and writing to God.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.8.0
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.6.2
+  google_fonts: ^6.2.1
+  http: ^1.2.2
+  intl: ^0.20.2
+  flutter_quill: ^11.5.1
+  shared_preferences: ^2.3.3
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.0
+  cupertino_icons: ^1.0.8
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/queen_avatar.png
+  adaptive_icon_background: "#FFF5F7"
+  adaptive_icon_foreground: assets/images/queen_avatar.png
+  web:
+    generate: true
+    image_path: assets/images/queen_avatar.png
+    background_color: "#FFF5F7"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/queen_avatar.png

@@ -15,13 +15,9 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.27.x'
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Generate platform folders
-        run: flutter create . --project-name babes_notebook --org com.babesnotebook
 
       - name: Build APK
         run: |
